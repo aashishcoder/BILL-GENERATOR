@@ -1,0 +1,14 @@
+{
+    "invoice_no": "2345678",
+    "date": "2025-06-30",
+    "customer": "Kunal",
+    "items": [
+        {
+            "description": "sdfghjk",
+            "hsn": "hjk",
+            "quantity": 234.0,
+            "rate": 34.0,
+            "total": 7956.0
+        }
+    ]
+}
