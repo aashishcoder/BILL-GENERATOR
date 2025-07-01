@@ -1,3 +1,297 @@
+# import tkinter as tk
+# from tkinter import messagebox, ttk
+# import os
+# import json
+# from invoice_generator import generate_pdf_invoice
+# from utils import save_invoice_data
+# from datetime import datetime
+
+# CUSTOMER_FILE = "data/customers.json"
+# ITEM_FILE = "data/items.json"
+
+# def load_customers():
+#     if os.path.exists(CUSTOMER_FILE):
+#         with open(CUSTOMER_FILE, "r") as f:
+#             return json.load(f)
+#     return []
+
+# def load_items():
+#     if os.path.exists(ITEM_FILE):
+#         with open(ITEM_FILE, "r") as f:
+#             return json.load(f)
+#     return []
+
+# def save_item(description, hsn, unit):
+#     items = load_items()
+#     if not any(i["description"] == description for i in items):
+#         items.append({"description": description, "hsn": hsn, "unit": unit})
+#         with open(ITEM_FILE, "w") as f:
+#             json.dump(items, f, indent=4)
+
+# def search_invoices():
+#     search_win = tk.Toplevel()
+#     search_win.title("Search Invoices")
+#     search_win.geometry("700x500")
+
+#     tk.Label(search_win, text="Search by Customer / Invoice No / Date (YYYY-MM-DD):").pack(pady=5)
+#     search_entry = tk.Entry(search_win, width=50)
+#     search_entry.pack(pady=5)
+
+#     tk.Label(search_win, text="From Date (YYYY-MM-DD):").pack()
+#     from_date_entry = tk.Entry(search_win)
+#     from_date_entry.pack()
+
+#     tk.Label(search_win, text="To Date (YYYY-MM-DD):").pack()
+#     to_date_entry = tk.Entry(search_win)
+#     to_date_entry.pack()
+
+#     result_text = tk.Text(search_win, height=20, width=85)
+#     result_text.pack(pady=10)
+
+#     def parse_date(date_str):
+#         try:
+#             return datetime.strptime(date_str, "%Y-%m-%d")
+#         except:
+#             return None
+
+#     def do_search():
+#         term = search_entry.get().strip().lower()
+#         from_date = parse_date(from_date_entry.get().strip())
+#         to_date = parse_date(to_date_entry.get().strip())
+
+#         folder = "data/invoices"
+#         results = []
+
+#         if os.path.exists(folder):
+#             for filename in os.listdir(folder):
+#                 if filename.endswith(".json"):
+#                     with open(os.path.join(folder, filename), "r") as f:
+#                         invoice = json.load(f)
+#                         inv_date = parse_date(invoice.get("date", ""))
+#                         matches_term = (
+#                             term in invoice.get("customer", "").lower() or
+#                             term in invoice.get("invoice_no", "").lower() or
+#                             term in invoice.get("date", "")
+#                         )
+#                         matches_date_range = True
+#                         if from_date and inv_date:
+#                             matches_date_range = inv_date >= from_date
+#                         if to_date and inv_date:
+#                             matches_date_range = matches_date_range and inv_date <= to_date
+
+#                         if matches_term and matches_date_range:
+#                             results.append(invoice)
+
+#         result_text.delete("1.0", tk.END)
+
+#         if results:
+#             results.sort(key=lambda x: x.get("date", ""), reverse=True)
+#             for inv in results:
+#                 total_amt = sum(item.get("total", 0) for item in inv["items"])
+#                 result_text.insert(tk.END, f"Invoice: {inv['invoice_no']} | Customer: {inv['customer']} | Date: {inv['date']} | Total: ₹{total_amt:.2f}\n")
+#         else:
+#             result_text.insert(tk.END, "No matching invoices found.")
+
+#     tk.Button(search_win, text="Search", command=do_search).pack(pady=5)
+#     tk.Button(search_win, text="Close", command=search_win.destroy).pack(pady=5)
+
+# def save_customer(name):
+#     customers = load_customers()
+#     if name and name not in customers:
+#         customers.append(name)
+#         with open(CUSTOMER_FILE, "w") as f:
+#             json.dump(customers, f, indent=4)
+
+# def preview_invoice(data, confirm_callback):
+#     preview_win = tk.Toplevel()
+#     preview_win.title("Invoice Preview")
+#     preview_win.geometry("600x400")
+
+#     items_text = "\n".join([f"{item['description']} - Qty: {item['quantity']} {item['unit']} @ ₹{item['rate']} = ₹{item['total']}" for item in data['items']])
+#     total_amt = sum([item['total'] for item in data['items']])
+
+#     preview_text = f"""
+#     Company: XYZ Pvt. Ltd.
+#     Customer: {data['customer']}
+#     Date: {data['date']}
+
+#     Items:
+#     {items_text}
+
+#     Total Amount: ₹{total_amt:.2f}
+#     """
+
+#     tk.Label(preview_win, text=preview_text, justify='left', font=("Courier", 10)).pack(padx=10, pady=10)
+#     tk.Button(preview_win, text="Confirm & Generate PDF", command=lambda: [preview_win.destroy(), confirm_callback()]).pack(pady=5)
+#     tk.Button(preview_win, text="Cancel", command=preview_win.destroy).pack()
+
+# def create_invoice():
+#     invoice_no = invoice_entry.get().strip()
+#     customer = customer_combobox.get().strip()
+
+#     if not invoice_no or not customer:
+#         messagebox.showerror("Error", "Please fill in Invoice No and Customer Name")
+#         return
+
+#     items = []
+#     for row in item_rows:
+#         desc = row[0].get().strip()
+#         hsn = row[1].get().strip()
+#         try:
+#             qty = float(row[2].get().strip())
+#             rate = float(row[3].get().strip())
+#         except ValueError:
+#             messagebox.showerror("Error", "Quantity and Rate must be numbers")
+#             return
+
+#         unit = row[4].get().strip()
+
+#         if not desc or not hsn or not unit:
+#             messagebox.showerror("Error", "Please fill in all item details")
+#             return
+
+#         total = qty * rate
+#         items.append({
+#             "description": desc,
+#             "hsn": hsn,
+#             "quantity": qty,
+#             "rate": rate,
+#             "unit": unit,
+#             "total": total
+#         })
+
+#     date = datetime.now().strftime("%Y-%m-%d")
+
+#     data = {
+#         "invoice_no": invoice_no,
+#         "date": date,
+#         "customer": customer,
+#         "items": items
+#     }
+
+#     def proceed_with_generation():
+#         filepath = generate_pdf_invoice(data)
+#         save_invoice_data(data, f"data/invoices/{invoice_no}.json")
+#         save_customer(customer)
+#         messagebox.showinfo("Success", f"Invoice {invoice_no} created successfully!")
+
+#     preview_invoice(data, proceed_with_generation)
+
+# def add_item_row():
+#     row_widgets = []
+#     row_index = len(item_rows) + 2
+
+#     item_options = [i["description"] for i in load_items()]
+
+#     desc_var = tk.StringVar()
+#     desc_cb = ttk.Combobox(root, values=item_options, textvariable=desc_var)
+#     desc_cb.grid(row=row_index, column=0, padx=5, pady=5)
+
+#     hsn_entry = tk.Entry(root)
+#     hsn_entry.grid(row=row_index, column=1, padx=5, pady=5)
+
+#     qty_entry = tk.Entry(root)
+#     qty_entry.grid(row=row_index, column=2, padx=5, pady=5)
+
+#     rate_entry = tk.Entry(root)
+#     rate_entry.grid(row=row_index, column=3, padx=5, pady=5)
+
+#     unit_entry = tk.Entry(root)
+#     unit_entry.grid(row=row_index, column=4, padx=5, pady=5)
+
+#     def on_item_selected(event):
+#         selected = desc_var.get()
+#         for item in load_items():
+#             if item["description"] == selected:
+#                 hsn_entry.delete(0, tk.END)
+#                 hsn_entry.insert(0, item["hsn"])
+#                 unit_entry.delete(0, tk.END)
+#                 unit_entry.insert(0, item.get("unit", ""))
+
+#     desc_cb.bind("<<ComboboxSelected>>", on_item_selected)
+
+#     delete_button = tk.Button(root, text="❌", command=lambda: delete_row(row_widgets, delete_button))
+#     delete_button.grid(row=row_index, column=5, padx=5, pady=5)
+
+#     row_widgets.extend([desc_cb, hsn_entry, qty_entry, rate_entry, unit_entry])
+#     item_rows.append(row_widgets)
+
+# def delete_row(row_widgets, delete_button):
+#     if messagebox.askyesno("Delete Item", "Are you sure you want to delete this item row?"):
+#         for widget in row_widgets:
+#             widget.destroy()
+#         delete_button.destroy()
+#         item_rows.remove(row_widgets)
+
+# def open_add_item_dialog():
+#     win = tk.Toplevel()
+#     win.title("Add New Item")
+#     win.geometry("300x200")
+
+#     tk.Label(win, text="Description:").pack(pady=2)
+#     desc_entry = tk.Entry(win)
+#     desc_entry.pack(pady=2)
+
+#     tk.Label(win, text="HSN Code:").pack(pady=2)
+#     hsn_entry = tk.Entry(win)
+#     hsn_entry.pack(pady=2)
+
+#     tk.Label(win, text="Unit (e.g., KGS, PCS):").pack(pady=2)
+#     unit_entry = tk.Entry(win)
+#     unit_entry.pack(pady=2)
+
+#     def save():
+#         desc = desc_entry.get().strip()
+#         hsn = hsn_entry.get().strip()
+#         unit = unit_entry.get().strip()
+#         if not desc or not hsn or not unit:
+#             messagebox.showerror("Error", "Please fill all fields")
+#             return
+#         save_item(desc, hsn, unit)
+#         win.destroy()
+#         messagebox.showinfo("Success", "Item saved successfully")
+
+#     tk.Button(win, text="Save", command=save).pack(pady=10)
+
+# root = tk.Tk()
+# root.title("Billing Software")
+
+# customer_list = load_customers()
+
+# invoice_label = tk.Label(root, text="Invoice No:")
+# invoice_label.grid(row=0, column=0, padx=5, pady=5)
+# invoice_entry = tk.Entry(root)
+# invoice_entry.grid(row=0, column=1, padx=5, pady=5)
+
+# customer_label = tk.Label(root, text="Customer:")
+# customer_label.grid(row=0, column=2, padx=5, pady=5)
+# customer_combobox = ttk.Combobox(root, values=customer_list)
+# customer_combobox.grid(row=0, column=3, padx=5, pady=5)
+# customer_combobox.set("")
+
+# add_item_btn = tk.Button(root, text="Add New Item to Master", command=open_add_item_dialog)
+# add_item_btn.grid(row=0, column=4, padx=5, pady=5)
+
+# headers = ["Description", "HSN", "Qty", "Rate", "Unit"]
+# for i, header in enumerate(headers):
+#     label = tk.Label(root, text=header)
+#     label.grid(row=1, column=i, padx=5, pady=5)
+
+# item_rows = []
+# add_item_row()
+
+# add_button = tk.Button(root, text="+ Add Item", command=add_item_row)
+# add_button.grid(row=100, column=0, padx=5, pady=10)
+
+# generate_button = tk.Button(root, text="Generate Invoice", command=create_invoice)
+# generate_button.grid(row=100, column=1, columnspan=2, padx=5, pady=10)
+
+# search_button = tk.Button(root, text="Search Invoices", command=search_invoices)
+# search_button.grid(row=100, column=3, padx=5, pady=10)
+
+# root.mainloop()
+
+# 
 import tkinter as tk
 from tkinter import messagebox, ttk
 import os
@@ -7,6 +301,7 @@ from utils import save_invoice_data
 from datetime import datetime
 
 CUSTOMER_FILE = "data/customers.json"
+ITEM_FILE = "data/items.json"
 
 def load_customers():
     if os.path.exists(CUSTOMER_FILE):
@@ -14,198 +309,126 @@ def load_customers():
             return json.load(f)
     return []
 
-from datetime import datetime
+def load_items():
+    if os.path.exists(ITEM_FILE):
+        with open(ITEM_FILE, "r") as f:
+            return json.load(f)
+    return []
 
-def search_invoices():
-    search_win = tk.Toplevel()
-    search_win.title("Search Invoices")
-    search_win.geometry("700x500")
+def save_item(description, hsn, unit):
+    items = load_items()
+    if not any(i["description"] == description for i in items):
+        items.append({"description": description, "hsn": hsn, "unit": unit})
+        with open(ITEM_FILE, "w") as f:
+            json.dump(items, f, indent=4)
 
-    # UI Elements
-    tk.Label(search_win, text="Search by Customer / Invoice No / Date (YYYY-MM-DD):").pack(pady=5)
-    search_entry = tk.Entry(search_win, width=50)
-    search_entry.pack(pady=5)
-
-    tk.Label(search_win, text="From Date (YYYY-MM-DD):").pack()
-    from_date_entry = tk.Entry(search_win)
-    from_date_entry.pack()
-
-    tk.Label(search_win, text="To Date (YYYY-MM-DD):").pack()
-    to_date_entry = tk.Entry(search_win)
-    to_date_entry.pack()
-
-    result_text = tk.Text(search_win, height=20, width=85)
-    result_text.pack(pady=10)
-
-    def parse_date(date_str):
-        try:
-            return datetime.strptime(date_str, "%Y-%m-%d")
-        except:
-            return None
-
-    def do_search():
-        term = search_entry.get().strip().lower()
-        from_date = parse_date(from_date_entry.get().strip())
-        to_date = parse_date(to_date_entry.get().strip())
-
-        folder = "data/invoices"
-        results = []
-
-        if os.path.exists(folder):
-            for filename in os.listdir(folder):
-                if filename.endswith(".json"):
-                    with open(os.path.join(folder, filename), "r") as f:
-                        invoice = json.load(f)
-                        inv_date = parse_date(invoice.get("date", ""))
-                        matches_term = (
-                            term in invoice.get("customer", "").lower() or
-                            term in invoice.get("invoice_no", "").lower() or
-                            term in invoice.get("date", "")
-                        )
-                        matches_date_range = True
-                        if from_date and inv_date:
-                            matches_date_range = inv_date >= from_date
-                        if to_date and inv_date:
-                            matches_date_range = matches_date_range and inv_date <= to_date
-
-                        if matches_term and matches_date_range:
-                            results.append(invoice)
-
-        result_text.delete("1.0", tk.END)
-
-        if results:
-            results.sort(key=lambda x: x.get("date", ""), reverse=True)  # Sort by date descending
-            for inv in results:
-                total_amt = sum(item.get("total", 0) for item in inv["items"])
-                result_text.insert(tk.END, f"Invoice: {inv['invoice_no']} | Customer: {inv['customer']} | Date: {inv['date']} | Total: ₹{total_amt:.2f}\n")
-        else:
-            result_text.insert(tk.END, "No matching invoices found.")
-
-    # Buttons
-    tk.Button(search_win, text="Search", command=do_search).pack(pady=5)
-    tk.Button(search_win, text="Close", command=search_win.destroy).pack(pady=5)
-
-
-
-def save_customer(name):
+def save_customer(customer_data):
     customers = load_customers()
-    if name and name not in customers:
-        customers.append(name)
-        with open(CUSTOMER_FILE, "w") as f:
-            json.dump(customers, f, indent=4)
-            
-def preview_invoice(data, confirm_callback):
-    preview_win = tk.Toplevel()
-    preview_win.title("Invoice Preview")
-    preview_win.geometry("600x400")
+    for i, c in enumerate(customers):
+        if c["name"] == customer_data["name"]:
+            customers[i] = customer_data
+            break
+    else:
+        customers.append(customer_data)
+    with open(CUSTOMER_FILE, "w") as f:
+        json.dump(customers, f, indent=4)
 
-    # Convert line items to a text block
-    items_text = "\n".join([f"{item['description']} - Qty: {item['quantity']} @ ₹{item['rate']} = ₹{item['total']}" for item in data['items']])
-    total_amt = sum([item['total'] for item in data['items']])
+def on_customer_selected(event):
+    selected_name = customer_combobox.get()
+    for c in load_customers():
+        if c["name"] == selected_name:
+            bill_address_entry.delete("1.0", tk.END)
+            bill_address_entry.insert(tk.END, c.get("bill_to", ""))
+            ship_address_entry.delete("1.0", tk.END)
+            ship_address_entry.insert(tk.END, c.get("ship_to", ""))
+            mobile_entry.delete(0, tk.END)
+            mobile_entry.insert(0, c.get("mobile", ""))
+            gstin_entry.delete(0, tk.END)
+            gstin_entry.insert(0, c.get("gstin", ""))
+            pan_entry.delete(0, tk.END)
+            pan_entry.insert(0, c.get("pan", ""))
+            state_entry.delete(0, tk.END)
+            state_entry.insert(0, c.get("state", ""))
+            break
 
-    preview_text = f"""
-    Company: XYZ Pvt. Ltd.
-    Customer: {data['customer']}
-    Date: {data['date']}
+def open_add_item_dialog():
+    win = tk.Toplevel()
+    win.title("Add New Item")
+    win.geometry("300x200")
 
-    Items:
-    {items_text}
+    tk.Label(win, text="Description:").pack(pady=2)
+    desc_entry = tk.Entry(win)
+    desc_entry.pack(pady=2)
 
-    Total Amount: ₹{total_amt:.2f}
-    """
+    tk.Label(win, text="HSN Code:").pack(pady=2)
+    hsn_entry = tk.Entry(win)
+    hsn_entry.pack(pady=2)
 
-    label = tk.Label(preview_win, text=preview_text, justify='left', font=("Courier", 10))
-    label.pack(padx=10, pady=10)
+    tk.Label(win, text="Unit (e.g., KGS, PCS):").pack(pady=2)
+    unit_entry = tk.Entry(win)
+    unit_entry.pack(pady=2)
 
-    # Confirm button
-    tk.Button(preview_win, text="Confirm & Generate PDF", command=lambda: [preview_win.destroy(), confirm_callback()]).pack(pady=5)
-    tk.Button(preview_win, text="Cancel", command=preview_win.destroy).pack()
-
-def create_invoice():
-    invoice_no = invoice_entry.get().strip()
-    customer = customer_combobox.get().strip()
-
-    if not invoice_no or not customer:
-        messagebox.showerror("Error", "Please fill in Invoice No and Customer Name")
-        return
-
-    items = []
-
-    for row in item_rows:
-        desc = row[0].get().strip()
-        hsn = row[1].get().strip()
-        try:
-            qty = float(row[2].get().strip())
-            rate = float(row[3].get().strip())
-        except ValueError:
-            messagebox.showerror("Error", "Quantity and Rate must be numbers")
+    def save():
+        desc = desc_entry.get().strip()
+        hsn = hsn_entry.get().strip()
+        unit = unit_entry.get().strip()
+        if not desc or not hsn or not unit:
+            messagebox.showerror("Error", "Please fill all fields")
             return
+        save_item(desc, hsn, unit)
+        win.destroy()
+        messagebox.showinfo("Success", "Item saved successfully")
 
-        if not desc or not hsn:
-            messagebox.showerror("Error", "Please fill in all item details")
-            return
-
-        total = qty * rate
-        items.append({
-            "description": desc,
-            "hsn": hsn,
-            "quantity": qty,
-            "rate": rate,
-            "total": total
-        })
-        if not items:
-            messagebox.showerror("Error", "No valid item rows found. Please enter at least one item.")
-            return
-
-
-    date = datetime.now().strftime("%Y-%m-%d")
-
-    data = {
-        "invoice_no": invoice_no,
-        "date": datetime.today().strftime("%Y-%m-%d"),
-        "customer": customer,
-        "items": items
-    }
-
-    # ➤ Preview first
-    def proceed_with_generation():
-        filepath = generate_pdf_invoice(data)
-        save_invoice_data(data, f"data/invoices/{invoice_no}.json")
-
-        save_customer(customer)
-        messagebox.showinfo("Success", f"Invoice {invoice_no} created successfully!")
-
-    preview_invoice(data, proceed_with_generation)
+    tk.Button(win, text="Save", command=save).pack(pady=10)
 
 def add_item_row():
     row_widgets = []
-    row_index = len(item_rows) + 2
+    row_index = len(item_rows) + 13
 
-    for i, placeholder in enumerate(["Description", "HSN", "Qty", "Rate"]):
-        entry = tk.Entry(root)
-        entry.grid(row=row_index, column=i, padx=5, pady=5)
-        row_widgets.append(entry)
+    item_options = [i["description"] for i in load_items()]
+    desc_var = tk.StringVar()
+    desc_cb = ttk.Combobox(root, values=item_options, textvariable=desc_var)
+    desc_cb.grid(row=row_index, column=0, padx=5, pady=5)
 
-    # Delete button for the row
-    def delete_row():
-        if messagebox.askyesno("Delete Item", "Are you sure you want to delete this item row?"):
-            for widget in row_widgets:
-                widget.destroy()
-            delete_button.destroy()
-            item_rows.remove(row_widgets)
+    hsn_entry = tk.Entry(root)
+    hsn_entry.grid(row=row_index, column=1, padx=5, pady=5)
 
-    delete_button = tk.Button(root, text="❌", command=delete_row)
-    delete_button.grid(row=row_index, column=4, padx=5, pady=5)
-    row_widgets.append(delete_button)
+    qty_entry = tk.Entry(root)
+    qty_entry.grid(row=row_index, column=2, padx=5, pady=5)
 
+    rate_entry = tk.Entry(root)
+    rate_entry.grid(row=row_index, column=3, padx=5, pady=5)
+
+    unit_entry = tk.Entry(root)
+    unit_entry.grid(row=row_index, column=4, padx=5, pady=5)
+
+    def on_item_selected(event):
+        selected = desc_var.get()
+        for item in load_items():
+            if item["description"] == selected:
+                hsn_entry.delete(0, tk.END)
+                hsn_entry.insert(0, item["hsn"])
+                unit_entry.delete(0, tk.END)
+                unit_entry.insert(0, item.get("unit", ""))
+
+    desc_cb.bind("<<ComboboxSelected>>", on_item_selected)
+
+    delete_button = tk.Button(root, text="❌", command=lambda: delete_row(row_widgets, delete_button))
+    delete_button.grid(row=row_index, column=5, padx=5, pady=5)
+
+    row_widgets.extend([desc_cb, hsn_entry, qty_entry, rate_entry, unit_entry])
     item_rows.append(row_widgets)
 
+def delete_row(row_widgets, delete_button):
+    if messagebox.askyesno("Delete Item", "Are you sure you want to delete this item row?"):
+        for widget in row_widgets:
+            widget.destroy()
+        delete_button.destroy()
+        item_rows.remove(row_widgets)
 
+# GUI START
 root = tk.Tk()
 root.title("Billing Software")
-
-# Invoice & Customer Details
-customer_list = load_customers()
 
 invoice_label = tk.Label(root, text="Invoice No:")
 invoice_label.grid(row=0, column=0, padx=5, pady=5)
@@ -214,29 +437,57 @@ invoice_entry.grid(row=0, column=1, padx=5, pady=5)
 
 customer_label = tk.Label(root, text="Customer:")
 customer_label.grid(row=0, column=2, padx=5, pady=5)
+customer_list = [c["name"] for c in load_customers()]
 customer_combobox = ttk.Combobox(root, values=customer_list)
 customer_combobox.grid(row=0, column=3, padx=5, pady=5)
-customer_combobox.set("")
+customer_combobox.bind("<<ComboboxSelected>>", on_customer_selected)
+
+add_item_btn = tk.Button(root, text="Add New Item to Master", command=open_add_item_dialog)
+add_item_btn.grid(row=0, column=4, padx=5, pady=5)
+
+# Customer Details Fields
+bill_address_label = tk.Label(root, text="Bill To Address")
+bill_address_label.grid(row=1, column=0, columnspan=2)
+bill_address_entry = tk.Text(root, height=3, width=40)
+bill_address_entry.grid(row=2, column=0, columnspan=2, padx=5, pady=5)
+
+ship_address_label = tk.Label(root, text="Ship To Address")
+ship_address_label.grid(row=1, column=2, columnspan=2)
+ship_address_entry = tk.Text(root, height=3, width=40)
+ship_address_entry.grid(row=2, column=2, columnspan=2, padx=5, pady=5)
+
+tk.Label(root, text="Mobile:").grid(row=3, column=0)
+mobile_entry = tk.Entry(root)
+mobile_entry.grid(row=3, column=1)
+
+tk.Label(root, text="GSTIN:").grid(row=3, column=2)
+gstin_entry = tk.Entry(root)
+gstin_entry.grid(row=3, column=3)
+
+tk.Label(root, text="PAN:").grid(row=4, column=0)
+pan_entry = tk.Entry(root)
+pan_entry.grid(row=4, column=1)
+
+tk.Label(root, text="State:").grid(row=4, column=2)
+state_entry = tk.Entry(root)
+state_entry.grid(row=4, column=3)
 
 # Table Headers
-headers = ["Description", "HSN", "Qty", "Rate"]
+headers = ["Description", "HSN", "Qty", "Rate", "Unit"]
 for i, header in enumerate(headers):
     label = tk.Label(root, text=header)
-    label.grid(row=1, column=i, padx=5, pady=5)
+    label.grid(row=12, column=i, padx=5, pady=5)
 
-# Item Rows
 item_rows = []
-add_item_row()  # Add initial row
+add_item_row()
 
-# Buttons
 add_button = tk.Button(root, text="+ Add Item", command=add_item_row)
-add_button.grid(row=100, column=0, padx=5, pady=10)
+add_button.grid(row=500, column=0, padx=5, pady=10)
 
-generate_button = tk.Button(root, text="Generate Invoice", command=create_invoice)
-generate_button.grid(row=100, column=1, columnspan=2, padx=5, pady=10)
+generate_button = tk.Button(root, text="Generate Invoice")
+generate_button.grid(row=500, column=1, columnspan=2, padx=5, pady=10)
 
-search_button = tk.Button(root, text="Search Invoices", command=search_invoices)
-search_button.grid(row=100, column=3, padx=5, pady=10)
+search_button = tk.Button(root, text="Search Invoices")
+search_button.grid(row=500, column=3, padx=5, pady=10)
 
 root.mainloop()
-
