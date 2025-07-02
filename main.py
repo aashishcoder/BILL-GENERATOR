@@ -5,6 +5,7 @@ import json
 from invoice_generator import generate_pdf_invoice
 from utils import save_invoice_data
 from datetime import datetime
+import platform
 
 CUSTOMER_FILE = "data/customers.json"
 ITEM_FILE = "data/items.json"
@@ -89,24 +90,24 @@ def open_add_item_dialog():
 
 def add_item_row():
     row_widgets = []
-    row_index = len(item_rows) + 13
+    row_index = len(item_rows) + 1
 
     item_options = [i["description"] for i in load_items()]
     desc_var = tk.StringVar()
-    desc_cb = ttk.Combobox(root, values=item_options, textvariable=desc_var)
-    desc_cb.grid(row=row_index, column=0, padx=5, pady=5)
+    desc_cb = ttk.Combobox(item_frame_inner, values=item_options, textvariable=desc_var, width=25)
+    desc_cb.grid(row=row_index, column=0, padx=5, pady=3)
 
-    hsn_entry = tk.Entry(root)
-    hsn_entry.grid(row=row_index, column=1, padx=5, pady=5)
+    hsn_entry = tk.Entry(item_frame_inner, width=10)
+    hsn_entry.grid(row=row_index, column=1, padx=5, pady=3)
 
-    qty_entry = tk.Entry(root)
-    qty_entry.grid(row=row_index, column=2, padx=5, pady=5)
+    qty_entry = tk.Entry(item_frame_inner, width=8)
+    qty_entry.grid(row=row_index, column=2, padx=5, pady=3)
 
-    rate_entry = tk.Entry(root)
-    rate_entry.grid(row=row_index, column=3, padx=5, pady=5)
+    rate_entry = tk.Entry(item_frame_inner, width=10)
+    rate_entry.grid(row=row_index, column=3, padx=5, pady=3)
 
-    unit_entry = tk.Entry(root)
-    unit_entry.grid(row=row_index, column=4, padx=5, pady=5)
+    unit_entry = tk.Entry(item_frame_inner, width=10)
+    unit_entry.grid(row=row_index, column=4, padx=5, pady=3)
 
     def on_item_selected(event):
         selected = desc_var.get()
@@ -119,8 +120,8 @@ def add_item_row():
 
     desc_cb.bind("<<ComboboxSelected>>", on_item_selected)
 
-    delete_button = tk.Button(root, text="❌", command=lambda: delete_row(row_widgets, delete_button))
-    delete_button.grid(row=row_index, column=5, padx=5, pady=5)
+    delete_button = tk.Button(item_frame_inner, text="❌", command=lambda: delete_row(row_widgets, delete_button))
+    delete_button.grid(row=row_index, column=5, padx=5, pady=3)
 
     row_widgets.extend([desc_cb, hsn_entry, qty_entry, rate_entry, unit_entry])
     item_rows.append(row_widgets)
@@ -175,72 +176,108 @@ def generate_invoice():
 
     filepath = f"data/invoices/Invoice_{invoice_no}.json"
     save_invoice_data(data, filepath)
-
     pdf_path = generate_pdf_invoice(data)
     messagebox.showinfo("Success", f"Invoice saved:\n{pdf_path}")
 
-# GUI START
+# GUI INIT
 root = tk.Tk()
 root.title("Billing Software")
+root.geometry("1000x700")
 
-invoice_label = tk.Label(root, text="Invoice No:")
-invoice_label.grid(row=0, column=0, padx=5, pady=5)
-invoice_entry = tk.Entry(root)
+style = ttk.Style()
+if platform.system() == "Darwin":
+    style.theme_use("aqua")
+else:
+    style.theme_use("default")
+
+main_frame = tk.Frame(root)
+main_frame.pack(fill=tk.BOTH, expand=True)
+
+canvas = tk.Canvas(main_frame, highlightthickness=0)
+scrollbar = ttk.Scrollbar(main_frame, orient=tk.VERTICAL, command=canvas.yview)
+scrollable_frame = tk.Frame(canvas)
+
+scrollable_frame.bind(
+    "<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+)
+
+canvas.create_window((0, 0), window=scrollable_frame, anchor="n")
+canvas.configure(yscrollcommand=scrollbar.set)
+canvas.pack(side="left", fill="both", expand=True)
+scrollbar.pack(side="right", fill="y")
+
+# Mousewheel support
+canvas.bind_all("<MouseWheel>", lambda event: canvas.yview_scroll(int(-1 * (event.delta / 120)), "units"))
+
+# Layout Grid
+for i in range(6): scrollable_frame.columnconfigure(i, weight=1)
+
+# Header fields
+invoice_label = tk.Label(scrollable_frame, text="Invoice No:")
+invoice_label.grid(row=0, column=0, sticky="e", padx=5, pady=5)
+invoice_entry = tk.Entry(scrollable_frame)
 invoice_entry.grid(row=0, column=1, padx=5, pady=5)
 
-customer_label = tk.Label(root, text="Customer:")
-customer_label.grid(row=0, column=2, padx=5, pady=5)
+customer_label = tk.Label(scrollable_frame, text="Customer:")
+customer_label.grid(row=0, column=2, sticky="e", padx=5, pady=5)
 customer_list = [c["name"] for c in load_customers()]
-customer_combobox = ttk.Combobox(root, values=customer_list)
+customer_combobox = ttk.Combobox(scrollable_frame, values=customer_list)
 customer_combobox.grid(row=0, column=3, padx=5, pady=5)
 customer_combobox.bind("<<ComboboxSelected>>", on_customer_selected)
 
-add_item_btn = tk.Button(root, text="Add New Item to Master", command=open_add_item_dialog)
-add_item_btn.grid(row=0, column=4, padx=5, pady=5)
+add_item_btn = tk.Button(scrollable_frame, text="Add New Item to Master", command=open_add_item_dialog)
+add_item_btn.grid(row=1, column=0, columnspan=6, pady=10)
 
-# Customer Details Fields
-bill_address_label = tk.Label(root, text="Bill To Address")
-bill_address_label.grid(row=1, column=0, columnspan=2)
-bill_address_entry = tk.Text(root, height=3, width=40)
-bill_address_entry.grid(row=2, column=0, columnspan=2, padx=5, pady=5)
+# Customer info
+bill_address_label = tk.Label(scrollable_frame, text="Bill To Address")
+bill_address_label.grid(row=2, column=0, columnspan=2)
+bill_address_entry = tk.Text(scrollable_frame, height=3, width=40)
+bill_address_entry.grid(row=3, column=0, columnspan=2, padx=5, pady=5)
 
-ship_address_label = tk.Label(root, text="Ship To Address")
-ship_address_label.grid(row=1, column=2, columnspan=2)
-ship_address_entry = tk.Text(root, height=3, width=40)
-ship_address_entry.grid(row=2, column=2, columnspan=2, padx=5, pady=5)
+ship_address_label = tk.Label(scrollable_frame, text="Ship To Address")
+ship_address_label.grid(row=2, column=2, columnspan=2)
+ship_address_entry = tk.Text(scrollable_frame, height=3, width=40)
+ship_address_entry.grid(row=3, column=2, columnspan=2, padx=5, pady=5)
 
-tk.Label(root, text="Mobile:").grid(row=3, column=0)
-mobile_entry = tk.Entry(root)
-mobile_entry.grid(row=3, column=1)
+tk.Label(scrollable_frame, text="Mobile:").grid(row=4, column=0)
+mobile_entry = tk.Entry(scrollable_frame)
+mobile_entry.grid(row=4, column=1)
 
-tk.Label(root, text="GSTIN:").grid(row=3, column=2)
-gstin_entry = tk.Entry(root)
-gstin_entry.grid(row=3, column=3)
+tk.Label(scrollable_frame, text="GSTIN:").grid(row=4, column=2)
+gstin_entry = tk.Entry(scrollable_frame)
+gstin_entry.grid(row=4, column=3)
 
-tk.Label(root, text="PAN:").grid(row=4, column=0)
-pan_entry = tk.Entry(root)
-pan_entry.grid(row=4, column=1)
+tk.Label(scrollable_frame, text="PAN:").grid(row=5, column=0)
+pan_entry = tk.Entry(scrollable_frame)
+pan_entry.grid(row=5, column=1)
 
-tk.Label(root, text="State:").grid(row=4, column=2)
-state_entry = tk.Entry(root)
-state_entry.grid(row=4, column=3)
+tk.Label(scrollable_frame, text="State:").grid(row=5, column=2)
+state_entry = tk.Entry(scrollable_frame)
+state_entry.grid(row=5, column=3)
 
-# Table Headers
+item_frame_inner = tk.Frame(scrollable_frame)
+item_frame_inner.grid(row=6, column=0, columnspan=6, pady=10)
+
 headers = ["Description", "HSN", "Qty", "Rate", "Unit"]
 for i, header in enumerate(headers):
-    label = tk.Label(root, text=header)
-    label.grid(row=12, column=i, padx=5, pady=5)
+    label = tk.Label(item_frame_inner, text=header)
+    label.grid(row=0, column=i, padx=5, pady=5)
 
 item_rows = []
 add_item_row()
 
-add_button = tk.Button(root, text="+ Add Item", command=add_item_row)
-add_button.grid(row=500, column=0, padx=5, pady=10)
+# Controls
+control_frame = tk.Frame(scrollable_frame)
+control_frame.grid(row=999, column=0, columnspan=6, pady=10)
 
-generate_button = tk.Button(root, text="Generate Invoice", command=generate_invoice)
-generate_button.grid(row=500, column=1, columnspan=2, padx=5, pady=10)
+add_button = tk.Button(control_frame, text="+ Add Item", command=add_item_row)
+add_button.pack(side="left", padx=10)
 
-search_button = tk.Button(root, text="Search Invoices")
-search_button.grid(row=500, column=3, padx=5, pady=10)
+generate_button = tk.Button(control_frame, text="Generate Invoice", command=generate_invoice)
+generate_button.pack(side="left", padx=10)
+
+search_button = tk.Button(control_frame, text="Search Invoices")
+search_button.pack(side="left", padx=10)
 
 root.mainloop()
+
