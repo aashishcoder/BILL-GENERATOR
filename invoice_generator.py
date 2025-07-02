@@ -2,7 +2,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
-from reportlab.platypus import Image
+from reportlab.lib.utils import simpleSplit
 from utils import amount_to_words
 import os
 import datetime
@@ -14,6 +14,9 @@ font_path_regular = "assets/fonts/NotoSans-Regular.ttf"
 font_path_bold = "assets/fonts/NotoSans-Bold.ttf"
 pdfmetrics.registerFont(TTFont("NotoSans", font_path_regular))
 pdfmetrics.registerFont(TTFont("NotoSans-Bold", font_path_bold))
+
+def wrap_text(text, max_width, font_name, font_size):
+    return simpleSplit(text, font_name, font_size, max_width)
 
 def generate_qr_code(data, invoice_no):
     qr_path = f"data/qrcodes/invoice_{invoice_no}.png"
@@ -48,7 +51,6 @@ def export_invoice_to_csv(data, invoice_no):
 
 def generate_pdf_invoice(data):
     invoice_no = data["invoice_no"]
-    customer = data["customer"]
     items = data["items"]
     date = data.get("date") or datetime.datetime.now().strftime("%d-%m-%Y")
 
@@ -101,7 +103,7 @@ def generate_pdf_invoice(data):
     c.setFont("NotoSans", 9)
     c.drawString(70, address_y - 24, "kumarhim28@gmail.com")
 
-    # Invoice Box - only top border thick and grey background
+    # Invoice Box
     box_y = address_y - 50
     box_width = 530
     c.setFillColorRGB(0.95, 0.95, 0.95)
@@ -110,36 +112,65 @@ def generate_pdf_invoice(data):
     c.setLineWidth(2)
     c.line(30, box_y + 20, 30 + box_width, box_y + 20)  # Top border only
 
-    # Text inside box
+    # Invoice No. and Date
     c.setFont("NotoSans-Bold", 9)
     c.setFillColorRGB(0, 0, 0)
     c.drawString(35, box_y + 5, f"Invoice No.: {invoice_no}")
     c.drawRightString(550, box_y + 5, f"Invoice Date: {date}")
 
+    # Bill To / Ship To from GUI
 
-
-    # Bill To / Ship To
+    # Section Labels
     c.setFont("NotoSans-Bold", 9)
-    c.drawString(30, address_y - 65, "BILL TO:")
-    c.drawString(300, address_y - 65, "SHIP TO:")
+    c.drawString(30, box_y - 20, "BILL TO:")
+    c.drawString(300, box_y - 20, "SHIP TO:")
 
-    bill_text = [
-        "V.C. MONO FILAMENT INDUSTRIES",
-        "Abanton no. 890, flat no. 1,2,3, near kiran marble, Runakta,",
-        "Agra, Uttar Pradesh, Agra, 282007",
-        "Mobile: 9917502040",
-        "GSTIN: 09AAPFV5164M1ZA",
-        "PAN Number: AAPFV5164M",
-        "State: Uttar Pradesh"
-    ]
+    # Address Content
     c.setFont("NotoSans", 9)
-    for i, line in enumerate(bill_text):
-        y = address_y - 80 - (i * 12)
-        c.drawString(30, y, line)
-        c.drawString(300, y, line)
+    bill_text = data.get("bill_to", "")
+    ship_text = data.get("ship_to", "")
+
+    # Wrap the text within the width constraints
+    bill_lines = simpleSplit(bill_text, "NotoSans", 9, 250)  # wrap at 250px width
+    ship_lines = simpleSplit(ship_text, "NotoSans", 9, 230)  # wrap at 230px width
+
+    # Draw each line, keeping alignment
+    line_height = 12
+    max_lines = max(len(bill_lines), len(ship_lines))
+    for i in range(max_lines):
+        y = box_y - 35 - i * line_height
+        if i < len(bill_lines):
+            c.drawString(30, y, bill_lines[i])
+        if i < len(ship_lines):
+            c.drawString(300, y, ship_lines[i])
+
+    # Store updated vertical position for remaining content
+    offset = box_y - 35 - max_lines * line_height
+
+
+    # Extra Customer Info
+    c.setFont("NotoSans-Bold", 9)
+    c.drawString(30, offset, "Mobile:")
+    c.setFont("NotoSans", 9)
+    c.drawString(80, offset, data.get("mobile", ""))
+
+    c.setFont("NotoSans-Bold", 9)
+    c.drawString(180, offset, "GSTIN:")
+    c.setFont("NotoSans", 9)
+    c.drawString(220, offset, data.get("gstin", ""))
+
+    c.setFont("NotoSans-Bold", 9)
+    c.drawString(30, offset - 12, "PAN:")
+    c.setFont("NotoSans", 9)
+    c.drawString(80, offset - 12, data.get("pan", ""))
+
+    c.setFont("NotoSans-Bold", 9)
+    c.drawString(180, offset - 12, "State:")
+    c.setFont("NotoSans", 9)
+    c.drawString(220, offset - 12, data.get("state", ""))
 
     # Table Header
-    table_y = address_y - 170
+    table_y = y - 30
     c.setFont("NotoSans-Bold", 9)
     c.setStrokeColorRGB(*green)
     c.setLineWidth(0.7)
@@ -194,7 +225,7 @@ def generate_pdf_invoice(data):
     c.drawString(30, y - 12, "1. Goods once sold will not be taken back or exchanged.")
     c.drawString(30, y - 24, "2. All disputes are subject to Agra jurisdiction only.")
 
-    # Right Side Totals with fixed label/value alignment
+    # Right Side Totals
     c.setFont("NotoSans", 8)
     label_x = 400
     value_x = 560
@@ -216,10 +247,10 @@ def generate_pdf_invoice(data):
     c.setFont("NotoSans-Bold", 9)
     c.drawString(30, right_y - 72, amount_to_words(total_amount))
 
-    # QR Code at the bottom
+    # QR Code
     qr_path = generate_qr_code(data, invoice_no)
     if os.path.exists(qr_path):
-        c.drawImage(qr_path, 500, right_y - 160, width=60, height=60)
+        c.drawImage(qr_path, 500, 50, width=60, height=60)
 
     c.save()
     export_invoice_to_csv(data, invoice_no)
